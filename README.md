@@ -1,8 +1,6 @@
 # chatto
 
-Generated Elixir client for [Chatto](https://github.com/chattocorp/chatto)'s Connect API:
-protobuf messages and unary service modules for the `admin`, `api`, `auth`, `discovery` and
-`realtime` packages, plus `Chatto.Connect`, the client they call.
+Generated Elixir client for [Chatto](https://github.com/chattocorp/chatto)'s [Connect](https://connectrpc.com) API
 
 ```elixir
 client = Chatto.Connect.new("https://chat.example", token)
