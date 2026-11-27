@@ -9,10 +9,11 @@ defmodule Chatto.Api.V1.GetUserRequest do
   end
 
   @type t :: %__MODULE__{
+          include_verified_identities: boolean(),
           target: {:user_id, String.t()} | {:login, String.t()} | nil,
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct target: nil, __uf__: []
+  defstruct include_verified_identities: false, target: nil, __uf__: []
 
   (
     (
@@ -25,7 +26,10 @@ defmodule Chatto.Api.V1.GetUserRequest do
 
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
-        {_acc = [], _acc_size = 0} |> encode_target(msg) |> encode_unknown_fields(msg)
+        {_acc = [], _acc_size = 0}
+        |> encode_target(msg)
+        |> encode_include_verified_identities(msg)
+        |> encode_unknown_fields(msg)
       end
     )
 
@@ -42,6 +46,21 @@ defmodule Chatto.Api.V1.GetUserRequest do
           {value_bytes, value_bytes_size} = Protox.Encode.encode_string(child_field_value)
           {["\n", value_bytes | acc], acc_size + 1 + value_bytes_size}
       end
+    end
+
+    defp encode_include_verified_identities({acc, acc_size}, msg) do
+      if msg.include_verified_identities == false do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} =
+          Protox.Encode.encode_bool(msg.include_verified_identities)
+
+        {["\x18", value_bytes | acc], acc_size + 1 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:include_verified_identities, "invalid field value"),
+                __STACKTRACE__
     end
 
     defp encode_unknown_fields({acc, acc_size}, msg) do
@@ -112,6 +131,10 @@ defmodule Chatto.Api.V1.GetUserRequest do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<3::5, _wire_type::3, bytes::binary>> ->
+              {value, rest} = Protox.Decode.parse_bool(bytes)
+              {[include_verified_identities: value], rest}
+
             <<2::5, 2::3, bytes::binary>> ->
               {len, bytes} = Protox.Varint.decode(bytes)
               {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
@@ -155,6 +178,10 @@ defmodule Chatto.Api.V1.GetUserRequest do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:include_verified_identities) do
+      {:ok, false}
+    end
+
     def default(:login) do
       {:error, :no_default_value}
     end
@@ -173,6 +200,15 @@ defmodule Chatto.Api.V1.GetUserRequest do
     %{
       __struct__: Protox.MessageSchema,
       fields: %{
+        include_verified_identities: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: false},
+          label: :optional,
+          name: :include_verified_identities,
+          tag: 3,
+          type: :bool
+        },
         login: %{
           __struct__: Protox.Field,
           extender: nil,

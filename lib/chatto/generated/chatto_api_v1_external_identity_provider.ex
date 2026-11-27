@@ -9,13 +9,15 @@ defmodule Chatto.Api.V1.ExternalIdentityProvider do
   end
 
   @type t :: %__MODULE__{
+          reverification_available: boolean(),
           provider: Chatto.Api.V1.ProviderMetadata.t() | nil,
           linked_identity_subject_hash: String.t(),
           linked: boolean(),
           link_url: String.t(),
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct provider: nil,
+  defstruct reverification_available: false,
+            provider: nil,
             linked_identity_subject_hash: "",
             linked: false,
             link_url: "",
@@ -33,6 +35,7 @@ defmodule Chatto.Api.V1.ExternalIdentityProvider do
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
         {_acc = [], _acc_size = 0}
+        |> encode_reverification_available(msg)
         |> encode_provider(msg)
         |> encode_linked_identity_subject_hash(msg)
         |> encode_linked(msg)
@@ -40,6 +43,19 @@ defmodule Chatto.Api.V1.ExternalIdentityProvider do
         |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_reverification_available({acc, acc_size}, msg) do
+      if msg.reverification_available == false do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_bool(msg.reverification_available)
+        {["H", value_bytes | acc], acc_size + 1 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:reverification_available, "invalid field value"),
+                __STACKTRACE__
+    end
 
     defp encode_provider({acc, acc_size}, msg) do
       if msg.provider == nil do
@@ -160,6 +176,10 @@ defmodule Chatto.Api.V1.ExternalIdentityProvider do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<9::5, _wire_type::3, bytes::binary>> ->
+              {value, rest} = Protox.Decode.parse_bool(bytes)
+              {[reverification_available: value], rest}
+
             <<8::5, 2::3, bytes::binary>> ->
               {len, bytes} = Protox.Varint.decode(bytes)
               {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
@@ -219,6 +239,10 @@ defmodule Chatto.Api.V1.ExternalIdentityProvider do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:reverification_available) do
+      {:ok, false}
+    end
+
     def default(:provider) do
       {:ok, nil}
     end
@@ -280,6 +304,15 @@ defmodule Chatto.Api.V1.ExternalIdentityProvider do
           name: :provider,
           tag: 8,
           type: {:message, Chatto.Api.V1.ProviderMetadata}
+        },
+        reverification_available: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: false},
+          label: :optional,
+          name: :reverification_available,
+          tag: 9,
+          type: :bool
         }
       },
       file_options: %{

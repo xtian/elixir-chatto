@@ -11,12 +11,14 @@ defmodule Chatto.Admin.V1.UpdateRoleRequest do
   @type t :: %__MODULE__{
           update_mask: Google.Protobuf.FieldMask.t() | nil,
           name: String.t(),
+          requires_shield_mode: boolean() | nil,
           pingable: boolean() | nil,
           description: String.t() | nil,
           display_name: String.t() | nil,
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct update_mask: nil,
+  defstruct requires_shield_mode: nil,
+            update_mask: nil,
             pingable: nil,
             description: nil,
             display_name: nil,
@@ -35,6 +37,7 @@ defmodule Chatto.Admin.V1.UpdateRoleRequest do
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
         {_acc = [], _acc_size = 0}
+        |> encode_requires_shield_mode(msg)
         |> encode_pingable(msg)
         |> encode_description(msg)
         |> encode_display_name(msg)
@@ -43,6 +46,21 @@ defmodule Chatto.Admin.V1.UpdateRoleRequest do
         |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_requires_shield_mode({acc, acc_size}, msg) do
+      case msg.requires_shield_mode do
+        nil ->
+          {acc, acc_size}
+
+        child_field_value ->
+          {value_bytes, value_bytes_size} = Protox.Encode.encode_bool(child_field_value)
+          {["0", value_bytes | acc], acc_size + 1 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:requires_shield_mode, "invalid field value"),
+                __STACKTRACE__
+    end
 
     defp encode_update_mask({acc, acc_size}, msg) do
       if msg.update_mask == nil do
@@ -178,6 +196,10 @@ defmodule Chatto.Admin.V1.UpdateRoleRequest do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<6::5, _wire_type::3, bytes::binary>> ->
+              {value, rest} = Protox.Decode.parse_bool(bytes)
+              {[requires_shield_mode: value], rest}
+
             <<5::5, 2::3, bytes::binary>> ->
               {len, bytes} = Protox.Varint.decode(bytes)
               {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
@@ -242,6 +264,10 @@ defmodule Chatto.Admin.V1.UpdateRoleRequest do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:requires_shield_mode) do
+      {:error, :no_default_value}
+    end
+
     def default(:update_mask) do
       {:ok, nil}
     end
@@ -306,6 +332,15 @@ defmodule Chatto.Admin.V1.UpdateRoleRequest do
           label: :proto3_optional,
           name: :pingable,
           tag: 4,
+          type: :bool
+        },
+        requires_shield_mode: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.OneOf, parent: :_requires_shield_mode},
+          label: :proto3_optional,
+          name: :requires_shield_mode,
+          tag: 6,
           type: :bool
         },
         update_mask: %{

@@ -9,6 +9,9 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
   end
 
   @type t :: %__MODULE__{
+          last_commit_time: Google.Protobuf.Timestamp.t() | nil,
+          current_operation: String.t(),
+          stalled: boolean(),
           metrics: [Chatto.Admin.V1.AdminProjectionMetric.t()],
           average_entry_bytes: integer(),
           estimated_bytes: integer(),
@@ -24,10 +27,17 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
           subjects: [String.t()],
           name: String.t(),
           key: String.t(),
+          current_operation_seconds: float() | nil,
+          pending_seconds: float() | nil,
           startup_duration_seconds: float() | nil,
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct metrics: [],
+  defstruct last_commit_time: nil,
+            current_operation_seconds: nil,
+            current_operation: "",
+            pending_seconds: nil,
+            stalled: false,
+            metrics: [],
             average_entry_bytes: 0,
             estimated_bytes: 0,
             entry_count: 0,
@@ -57,7 +67,12 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
         {_acc = [], _acc_size = 0}
+        |> encode_current_operation_seconds(msg)
+        |> encode_pending_seconds(msg)
         |> encode_startup_duration_seconds(msg)
+        |> encode_last_commit_time(msg)
+        |> encode_current_operation(msg)
+        |> encode_stalled(msg)
         |> encode_metrics(msg)
         |> encode_average_entry_bytes(msg)
         |> encode_estimated_bytes(msg)
@@ -76,6 +91,72 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
         |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_last_commit_time({acc, acc_size}, msg) do
+      if msg.last_commit_time == nil do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_message(msg.last_commit_time)
+        {["\xAA\x01", value_bytes | acc], acc_size + 2 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:last_commit_time, "invalid field value"), __STACKTRACE__
+    end
+
+    defp encode_current_operation_seconds({acc, acc_size}, msg) do
+      case msg.current_operation_seconds do
+        nil ->
+          {acc, acc_size}
+
+        child_field_value ->
+          {value_bytes, value_bytes_size} = Protox.Encode.encode_double(child_field_value)
+          {["\xA1\x01", value_bytes | acc], acc_size + 2 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:current_operation_seconds, "invalid field value"),
+                __STACKTRACE__
+    end
+
+    defp encode_current_operation({acc, acc_size}, msg) do
+      if msg.current_operation == "" do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_string(msg.current_operation)
+        {["\x9A\x01", value_bytes | acc], acc_size + 2 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:current_operation, "invalid field value"),
+                __STACKTRACE__
+    end
+
+    defp encode_pending_seconds({acc, acc_size}, msg) do
+      case msg.pending_seconds do
+        nil ->
+          {acc, acc_size}
+
+        child_field_value ->
+          {value_bytes, value_bytes_size} = Protox.Encode.encode_double(child_field_value)
+          {["\x91\x01", value_bytes | acc], acc_size + 2 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:pending_seconds, "invalid field value"), __STACKTRACE__
+    end
+
+    defp encode_stalled({acc, acc_size}, msg) do
+      if msg.stalled == false do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_bool(msg.stalled)
+        {["\x88\x01", value_bytes | acc], acc_size + 2 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:stalled, "invalid field value"), __STACKTRACE__
+    end
 
     defp encode_metrics({acc, acc_size}, msg) do
       case msg.metrics do
@@ -379,6 +460,35 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<21::5, 2::3, "\x01", bytes::binary>> ->
+              {len, bytes} = Protox.Varint.decode(bytes)
+              {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
+
+              {[
+                 last_commit_time:
+                   Protox.MergeMessage.merge(
+                     msg.last_commit_time,
+                     Google.Protobuf.Timestamp.decode!(delimited)
+                   )
+               ], rest}
+
+            <<20::5, _wire_type::3, "\x01", bytes::binary>> ->
+              {value, rest} = Protox.Decode.parse_double(bytes)
+              {[current_operation_seconds: value], rest}
+
+            <<19::5, 2::3, "\x01", bytes::binary>> ->
+              {len, bytes} = Protox.Varint.decode(bytes)
+              {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
+              {[current_operation: Protox.Decode.validate_string!(delimited)], rest}
+
+            <<18::5, _wire_type::3, "\x01", bytes::binary>> ->
+              {value, rest} = Protox.Decode.parse_double(bytes)
+              {[pending_seconds: value], rest}
+
+            <<17::5, _wire_type::3, "\x01", bytes::binary>> ->
+              {value, rest} = Protox.Decode.parse_bool(bytes)
+              {[stalled: value], rest}
+
             <<16::5, 2::3, "\x01", bytes::binary>> ->
               {len, bytes} = Protox.Varint.decode(bytes)
               {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
@@ -488,6 +598,26 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:last_commit_time) do
+      {:ok, nil}
+    end
+
+    def default(:current_operation_seconds) do
+      {:error, :no_default_value}
+    end
+
+    def default(:current_operation) do
+      {:ok, ""}
+    end
+
+    def default(:pending_seconds) do
+      {:error, :no_default_value}
+    end
+
+    def default(:stalled) do
+      {:ok, false}
+    end
+
     def default(:metrics) do
       {:error, :no_default_value}
     end
@@ -571,6 +701,24 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
           tag: 15,
           type: :int64
         },
+        current_operation: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: ""},
+          label: :optional,
+          name: :current_operation,
+          tag: 19,
+          type: :string
+        },
+        current_operation_seconds: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.OneOf, parent: :_current_operation_seconds},
+          label: :proto3_optional,
+          name: :current_operation_seconds,
+          tag: 20,
+          type: :double
+        },
         entry_count: %{
           __struct__: Protox.Field,
           extender: nil,
@@ -643,6 +791,15 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
           tag: 6,
           type: :string
         },
+        last_commit_time: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: nil},
+          label: :optional,
+          name: :last_commit_time,
+          tag: 21,
+          type: {:message, Google.Protobuf.Timestamp}
+        },
         matching_stream_sequence: %{
           __struct__: Protox.Field,
           extender: nil,
@@ -669,6 +826,24 @@ defmodule Chatto.Admin.V1.AdminProjectionState do
           name: :name,
           tag: 2,
           type: :string
+        },
+        pending_seconds: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.OneOf, parent: :_pending_seconds},
+          label: :proto3_optional,
+          name: :pending_seconds,
+          tag: 18,
+          type: :double
+        },
+        stalled: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: false},
+          label: :optional,
+          name: :stalled,
+          tag: 17,
+          type: :bool
         },
         started: %{
           __struct__: Protox.Field,

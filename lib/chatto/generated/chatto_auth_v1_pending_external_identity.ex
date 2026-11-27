@@ -9,6 +9,7 @@ defmodule Chatto.Auth.V1.PendingExternalIdentity do
   end
 
   @type t :: %__MODULE__{
+          avatar_url: String.t(),
           invitation_required: boolean(),
           redirect_path: String.t(),
           bound_user_id: String.t(),
@@ -22,7 +23,8 @@ defmodule Chatto.Auth.V1.PendingExternalIdentity do
           choose_username: atom() | nil,
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct invitation_required: false,
+  defstruct avatar_url: "",
+            invitation_required: false,
             choose_username: nil,
             redirect_path: "",
             bound_user_id: "",
@@ -48,6 +50,7 @@ defmodule Chatto.Auth.V1.PendingExternalIdentity do
       def encode!(msg) do
         {_acc = [], _acc_size = 0}
         |> encode_choose_username(msg)
+        |> encode_avatar_url(msg)
         |> encode_invitation_required(msg)
         |> encode_redirect_path(msg)
         |> encode_bound_user_id(msg)
@@ -61,6 +64,18 @@ defmodule Chatto.Auth.V1.PendingExternalIdentity do
         |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_avatar_url({acc, acc_size}, msg) do
+      if msg.avatar_url == "" do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_string(msg.avatar_url)
+        {["b", value_bytes | acc], acc_size + 1 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:avatar_url, "invalid field value"), __STACKTRACE__
+    end
 
     defp encode_invitation_required({acc, acc_size}, msg) do
       if msg.invitation_required == false do
@@ -274,6 +289,11 @@ defmodule Chatto.Auth.V1.PendingExternalIdentity do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<12::5, 2::3, bytes::binary>> ->
+              {len, bytes} = Protox.Varint.decode(bytes)
+              {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
+              {[avatar_url: Protox.Decode.validate_string!(delimited)], rest}
+
             <<11::5, _wire_type::3, bytes::binary>> ->
               {value, rest} = Protox.Decode.parse_bool(bytes)
               {[invitation_required: value], rest}
@@ -363,6 +383,10 @@ defmodule Chatto.Auth.V1.PendingExternalIdentity do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:avatar_url) do
+      {:ok, ""}
+    end
+
     def default(:invitation_required) do
       {:ok, false}
     end
@@ -417,6 +441,15 @@ defmodule Chatto.Auth.V1.PendingExternalIdentity do
     %{
       __struct__: Protox.MessageSchema,
       fields: %{
+        avatar_url: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: ""},
+          label: :optional,
+          name: :avatar_url,
+          tag: 12,
+          type: :string
+        },
         bound_user_id: %{
           __struct__: Protox.Field,
           extender: nil,

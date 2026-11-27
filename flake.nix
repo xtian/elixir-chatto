@@ -16,11 +16,11 @@
     {
       # The Chatto release mix chatto.generate generates from; bump with the servers.
       lib.chatto = rec {
-        version = "0.5.0";
+        version = "0.6.0";
         src = fetchGit {
           url = "https://github.com/chattocorp/chatto.git";
           ref = "refs/tags/v${version}";
-          rev = "761c6589cad0b18a72e1487334e785e825525c85";
+          rev = "3d540752a4b6a904fc85e472c3c266191b585f4d";
         };
       };
 

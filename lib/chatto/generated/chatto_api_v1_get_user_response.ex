@@ -9,10 +9,11 @@ defmodule Chatto.Api.V1.GetUserResponse do
   end
 
   @type t :: %__MODULE__{
+          verified_identities: [Chatto.Api.V1.VerifiedIdentity.t()],
           user: Chatto.Api.V1.DirectoryMember.t() | nil,
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct user: nil, __uf__: []
+  defstruct verified_identities: [], user: nil, __uf__: []
 
   (
     (
@@ -25,9 +26,39 @@ defmodule Chatto.Api.V1.GetUserResponse do
 
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
-        {_acc = [], _acc_size = 0} |> encode_user(msg) |> encode_unknown_fields(msg)
+        {_acc = [], _acc_size = 0}
+        |> encode_verified_identities(msg)
+        |> encode_user(msg)
+        |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_verified_identities({acc, acc_size}, msg) do
+      case msg.verified_identities do
+        [] ->
+          {acc, acc_size}
+
+        values ->
+          {value_bytes, value_size} =
+            (
+              {value_bytes, value_size} =
+                Enum.reduce(values, {_local_acc = [], _local_acc_size = 0}, fn value,
+                                                                               {local_acc,
+                                                                                local_acc_size} ->
+                  {value_bytes, value_bytes_size} = Protox.Encode.encode_message(value)
+                  {[value_bytes, "\x12" | local_acc], local_acc_size + 1 + value_bytes_size}
+                end)
+
+              {Enum.reverse(value_bytes), value_size}
+            )
+
+          {[value_bytes | acc], acc_size + value_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:verified_identities, "invalid field value"),
+                __STACKTRACE__
+    end
 
     defp encode_user({acc, acc_size}, msg) do
       if msg.user == nil do
@@ -88,7 +119,11 @@ defmodule Chatto.Api.V1.GetUserResponse do
     (
       @spec parse_key_value(binary(), struct()) :: struct()
       defp parse_key_value(<<>>, msg) do
-        %{msg | __uf__: Enum.reverse(msg.__uf__)}
+        %{
+          msg
+          | verified_identities: Enum.reverse(msg.verified_identities),
+            __uf__: Enum.reverse(msg.__uf__)
+        }
       end
 
       defp parse_key_value(bytes, msg) do
@@ -108,6 +143,16 @@ defmodule Chatto.Api.V1.GetUserResponse do
 
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
+
+            <<2::5, 2::3, bytes::binary>> ->
+              {len, bytes} = Protox.Varint.decode(bytes)
+              {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
+
+              {[
+                 verified_identities: [
+                   Chatto.Api.V1.VerifiedIdentity.decode!(delimited) | msg.verified_identities
+                 ]
+               ], rest}
 
             <<1::5, 2::3, bytes::binary>> ->
               {len, bytes} = Protox.Varint.decode(bytes)
@@ -154,6 +199,10 @@ defmodule Chatto.Api.V1.GetUserResponse do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:verified_identities) do
+      {:error, :no_default_value}
+    end
+
     def default(:user) do
       {:ok, nil}
     end
@@ -176,6 +225,15 @@ defmodule Chatto.Api.V1.GetUserResponse do
           name: :user,
           tag: 1,
           type: {:message, Chatto.Api.V1.DirectoryMember}
+        },
+        verified_identities: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: :unpacked,
+          label: :repeated,
+          name: :verified_identities,
+          tag: 2,
+          type: {:message, Chatto.Api.V1.VerifiedIdentity}
         }
       },
       file_options: %{

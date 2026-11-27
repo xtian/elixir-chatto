@@ -9,6 +9,7 @@ defmodule Chatto.Api.V1.LinkedExternalIdentity do
   end
 
   @type t :: %__MODULE__{
+          account_label: String.t(),
           disconnect_eligibility: atom(),
           subject_hash: String.t(),
           provider_label: String.t(),
@@ -16,7 +17,8 @@ defmodule Chatto.Api.V1.LinkedExternalIdentity do
           provider_id: String.t(),
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct disconnect_eligibility: :DISCONNECT_ELIGIBILITY_UNSPECIFIED,
+  defstruct account_label: "",
+            disconnect_eligibility: :DISCONNECT_ELIGIBILITY_UNSPECIFIED,
             subject_hash: "",
             provider_label: "",
             provider_type: "",
@@ -35,6 +37,7 @@ defmodule Chatto.Api.V1.LinkedExternalIdentity do
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
         {_acc = [], _acc_size = 0}
+        |> encode_account_label(msg)
         |> encode_disconnect_eligibility(msg)
         |> encode_subject_hash(msg)
         |> encode_provider_label(msg)
@@ -43,6 +46,18 @@ defmodule Chatto.Api.V1.LinkedExternalIdentity do
         |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_account_label({acc, acc_size}, msg) do
+      if msg.account_label == "" do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_string(msg.account_label)
+        {["2", value_bytes | acc], acc_size + 1 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:account_label, "invalid field value"), __STACKTRACE__
+    end
 
     defp encode_disconnect_eligibility({acc, acc_size}, msg) do
       if msg.disconnect_eligibility == :DISCONNECT_ELIGIBILITY_UNSPECIFIED do
@@ -177,6 +192,11 @@ defmodule Chatto.Api.V1.LinkedExternalIdentity do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<6::5, 2::3, bytes::binary>> ->
+              {len, bytes} = Protox.Varint.decode(bytes)
+              {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
+              {[account_label: Protox.Decode.validate_string!(delimited)], rest}
+
             <<5::5, _wire_type::3, bytes::binary>> ->
               {value, rest} = Protox.Decode.parse_enum(bytes, Chatto.Api.V1.DisconnectEligibility)
               {[disconnect_eligibility: value], rest}
@@ -234,6 +254,10 @@ defmodule Chatto.Api.V1.LinkedExternalIdentity do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:account_label) do
+      {:ok, ""}
+    end
+
     def default(:disconnect_eligibility) do
       {:ok, :DISCONNECT_ELIGIBILITY_UNSPECIFIED}
     end
@@ -264,6 +288,15 @@ defmodule Chatto.Api.V1.LinkedExternalIdentity do
     %{
       __struct__: Protox.MessageSchema,
       fields: %{
+        account_label: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: ""},
+          label: :optional,
+          name: :account_label,
+          tag: 6,
+          type: :string
+        },
         disconnect_eligibility: %{
           __struct__: Protox.Field,
           extender: nil,

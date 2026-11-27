@@ -9,12 +9,13 @@ defmodule Chatto.Api.V1.PrivilegedModeState do
   end
 
   @type t :: %__MODULE__{
+          role_selection: Chatto.Api.V1.PrivilegedRoleSelection.t() | nil,
           expires_at: Google.Protobuf.Timestamp.t() | nil,
           active: boolean(),
           available: boolean(),
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct expires_at: nil, active: false, available: false, __uf__: []
+  defstruct role_selection: nil, expires_at: nil, active: false, available: false, __uf__: []
 
   (
     (
@@ -28,12 +29,25 @@ defmodule Chatto.Api.V1.PrivilegedModeState do
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
         {_acc = [], _acc_size = 0}
+        |> encode_role_selection(msg)
         |> encode_expires_at(msg)
         |> encode_active(msg)
         |> encode_available(msg)
         |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_role_selection({acc, acc_size}, msg) do
+      if msg.role_selection == nil do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_message(msg.role_selection)
+        {["\"", value_bytes | acc], acc_size + 1 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:role_selection, "invalid field value"), __STACKTRACE__
+    end
 
     defp encode_expires_at({acc, acc_size}, msg) do
       if msg.expires_at == nil do
@@ -139,6 +153,18 @@ defmodule Chatto.Api.V1.PrivilegedModeState do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<4::5, 2::3, bytes::binary>> ->
+              {len, bytes} = Protox.Varint.decode(bytes)
+              {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
+
+              {[
+                 role_selection:
+                   Protox.MergeMessage.merge(
+                     msg.role_selection,
+                     Chatto.Api.V1.PrivilegedRoleSelection.decode!(delimited)
+                   )
+               ], rest}
+
             <<3::5, 2::3, bytes::binary>> ->
               {len, bytes} = Protox.Varint.decode(bytes)
               {delimited, rest} = Protox.Decode.parse_delimited(bytes, len)
@@ -192,6 +218,10 @@ defmodule Chatto.Api.V1.PrivilegedModeState do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:role_selection) do
+      {:ok, nil}
+    end
+
     def default(:expires_at) do
       {:ok, nil}
     end
@@ -240,6 +270,15 @@ defmodule Chatto.Api.V1.PrivilegedModeState do
           name: :expires_at,
           tag: 3,
           type: {:message, Google.Protobuf.Timestamp}
+        },
+        role_selection: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: nil},
+          label: :optional,
+          name: :role_selection,
+          tag: 4,
+          type: {:message, Chatto.Api.V1.PrivilegedRoleSelection}
         }
       },
       file_options: %{

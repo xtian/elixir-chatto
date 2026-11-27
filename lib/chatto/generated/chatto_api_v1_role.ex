@@ -9,6 +9,7 @@ defmodule Chatto.Api.V1.Role do
   end
 
   @type t :: %__MODULE__{
+          requires_shield_mode: boolean(),
           pingable: boolean(),
           position: integer(),
           is_system: boolean(),
@@ -17,7 +18,8 @@ defmodule Chatto.Api.V1.Role do
           name: String.t(),
           __uf__: [{non_neg_integer(), Protox.Types.tag(), binary()}]
         }
-  defstruct pingable: false,
+  defstruct requires_shield_mode: false,
+            pingable: false,
             position: 0,
             is_system: false,
             description: "",
@@ -37,6 +39,7 @@ defmodule Chatto.Api.V1.Role do
       @spec encode!(t()) :: {iodata(), non_neg_integer()} | no_return()
       def encode!(msg) do
         {_acc = [], _acc_size = 0}
+        |> encode_requires_shield_mode(msg)
         |> encode_pingable(msg)
         |> encode_position(msg)
         |> encode_is_system(msg)
@@ -46,6 +49,19 @@ defmodule Chatto.Api.V1.Role do
         |> encode_unknown_fields(msg)
       end
     )
+
+    defp encode_requires_shield_mode({acc, acc_size}, msg) do
+      if msg.requires_shield_mode == false do
+        {acc, acc_size}
+      else
+        {value_bytes, value_bytes_size} = Protox.Encode.encode_bool(msg.requires_shield_mode)
+        {["8", value_bytes | acc], acc_size + 1 + value_bytes_size}
+      end
+    rescue
+      ArgumentError ->
+        reraise Protox.EncodingError.new(:requires_shield_mode, "invalid field value"),
+                __STACKTRACE__
+    end
 
     defp encode_pingable({acc, acc_size}, msg) do
       if msg.pingable == false do
@@ -187,6 +203,10 @@ defmodule Chatto.Api.V1.Role do
             <<0::5, _::3, _rest::binary>> ->
               raise %Protox.IllegalTagError{}
 
+            <<7::5, _wire_type::3, bytes::binary>> ->
+              {value, rest} = Protox.Decode.parse_bool(bytes)
+              {[requires_shield_mode: value], rest}
+
             <<6::5, _wire_type::3, bytes::binary>> ->
               {value, rest} = Protox.Decode.parse_bool(bytes)
               {[pingable: value], rest}
@@ -247,6 +267,10 @@ defmodule Chatto.Api.V1.Role do
     @spec default(atom()) ::
             {:ok, boolean() | integer() | String.t() | float()}
             | {:error, :no_such_field | :no_default_value}
+    def default(:requires_shield_mode) do
+      {:ok, false}
+    end
+
     def default(:pingable) do
       {:ok, false}
     end
@@ -334,6 +358,15 @@ defmodule Chatto.Api.V1.Role do
           name: :position,
           tag: 5,
           type: :int32
+        },
+        requires_shield_mode: %{
+          __struct__: Protox.Field,
+          extender: nil,
+          kind: %{__struct__: Protox.Scalar, default_value: false},
+          label: :optional,
+          name: :requires_shield_mode,
+          tag: 7,
+          type: :bool
         }
       },
       file_options: %{
