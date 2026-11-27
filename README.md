@@ -2,6 +2,18 @@
 
 Generated Elixir client for [Chatto](https://github.com/chattocorp/chatto)'s [Connect](https://connectrpc.com) API
 
+Add `chatto` to your dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:chatto, "~> 0.1"}
+  ]
+end
+```
+
+Then build a client and call a service:
+
 ```elixir
 client = Chatto.Connect.new("https://chat.example", token)
 

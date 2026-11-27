@@ -1,24 +1,31 @@
 defmodule Chatto.MixProject do
   use Mix.Project
 
+  @source_url "https://github.com/xtian/elixir-chatto"
+  @version "0.1.0"
+
   def project do
     [
       aliases: aliases(),
       app: :chatto,
       deps: deps(),
+      description: "Generated Elixir client for Chatto's Connect API",
       dialyzer: [
         ignore_warnings: ".dialyzer_ignore.exs",
         list_unused_filters: true,
         plt_add_apps: [:ex_unit, :mix]
       ],
       elixir: "~> 1.18",
+      docs: docs(),
       elixirc_paths: elixirc_paths(Mix.env()),
+      package: package(),
       # Mix 1.20 dep compiles ignore their own --no-code-path-pruning flag, so dialyxir's PLT
       # check recompiling stale deps strips :dialyzer from the code path
       prune_code_paths: Mix.env() != :test,
       start_permanent: false,
+      source_url: @source_url,
       test_coverage: [tool: ExCoveralls],
-      version: "0.1.0"
+      version: @version
     ]
   end
 
@@ -47,6 +54,7 @@ defmodule Chatto.MixProject do
 
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:ex_dna, "~> 1.0", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: [:dev, :test]},
@@ -55,6 +63,36 @@ defmodule Chatto.MixProject do
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:oeditus_credo, "~> 0.11", only: [:dev, :test], runtime: false},
       {:plug, "~> 1.0", only: :test}
+    ]
+  end
+
+  defp package do
+    [
+      files: ~W(lib .formatter.exs mix.exs CHANGELOG.md LICENSE README.md),
+      licenses: ["Apache-2.0"],
+      links: %{
+        "Changelog" => "https://hexdocs.pm/chatto/changelog.html",
+        "Chatto" => "https://github.com/chattocorp/chatto",
+        "GitHub" => @source_url
+      }
+    ]
+  end
+
+  defp docs do
+    [
+      extras: ["README.md", "CHANGELOG.md"],
+      filter_modules: fn module, _metadata -> module != Mix.Tasks.Chatto.Generate end,
+      groups_for_modules: [
+        Client: [Chatto.Connect, Chatto.Connect.Error],
+        Admin: ~r/^Chatto\.Admin\./,
+        API: ~r/^Chatto\.Api\./,
+        Auth: ~r/^Chatto\.Auth\./,
+        Discovery: ~r/^Chatto\.Discovery\./,
+        Realtime: ~r/^Chatto\.Realtime\./
+      ],
+      main: "readme",
+      source_ref: "v#{@version}",
+      source_url: @source_url
     ]
   end
 
